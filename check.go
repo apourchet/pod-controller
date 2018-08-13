@@ -8,7 +8,7 @@ import (
 	"os/exec"
 )
 
-// A check is a simple interface that will be easily mocked for testing purposes. It mirrors almost
+// A Check is a simple interface that will be easily mocked for testing purposes. It mirrors almost
 // exactly what Kubernetes calls an "Action" in its API, and only has a "run" function associated
 // with it.
 type Check interface {
@@ -19,20 +19,36 @@ var _ Check = HTTPCheck{}
 var _ Check = ShellCheck{}
 var _ Check = HealthyCheck{}
 
-// A shellcheck implements the Check interface and runs a command, reporting an error if the
-// exit code is not 0.
-type ShellCheck struct {
+// A RunnerCheck implements the Check interface and calls the Runner function.
+type RunnerCheck struct {
 	Runner func() error
 }
 
+// Run implements Check.Run.
+func (check RunnerCheck) Run() (bool, error) {
+	if err := check.Runner(); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// A ShellCheck implements the Check interface and runs a command, reporting an error if the
+// exit code is not 0.
+type ShellCheck struct {
+	Cmd *exec.Cmd
+}
+
+// NewShellCheck returns a new ShellCheck with the provided *exec.Cmd.
 func NewShellCheck(cmd *exec.Cmd) ShellCheck {
 	return ShellCheck{
-		Runner: cmd.Run,
+		Cmd: cmd,
 	}
 }
 
+// Run runs the command and returns an error if the command has an error, returning
+// true and no error otherwise.
 func (check ShellCheck) Run() (bool, error) {
-	if err := check.Runner(); err != nil {
+	if err := check.Cmd.Run(); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -41,9 +57,10 @@ func (check ShellCheck) Run() (bool, error) {
 // HealthyCheck always returns a healthy bit set to true and no error.
 type HealthyCheck struct{}
 
+// Run implements Check.Run.
 func (HealthyCheck) Run() (bool, error) { return true, nil }
 
-// An http check sends a GET request to the host/path provided and checks the status code to
+// An HTTPCheck sends a GET request to the host/path provided and checks the status code to
 // determine if the check succeeded or failed.
 type HTTPCheck struct {
 	Scheme  string

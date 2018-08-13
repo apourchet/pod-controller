@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"plugin"
 
 	oci "github.com/opencontainers/runtime-spec/specs-go"
@@ -9,30 +10,22 @@ import (
 
 // The pod controller will load in a `process runtime` through the golang plugins
 // medium with a .so file somewhere on disk. That plugin will be responsible for providing
-// a few symbols, namely:
-// - var Bootstrapper ctrl.ContainerBootstrapper
-// - var ShellProxy ctrl.ShellProxy (optional)
-// - var HTTPProxy ctrl.HTTPProxy (optional)
+// the following symbols:
+// - var Bootstrapper func(spec oci.Spec) interface{}
 
 // In the controller package (aliased above as ctrl) we will have the following type
 // declarations:
 // https://github.com/opencontainers/runtime-spec/blob/master/specs-go/config.go
-type ContainerBootstrapper func(args oci.Spec) (pname string, cmd Command, err error)
+type ContainerBootstrapper func(args oci.Spec) (Container, error)
 
-type Command interface {
+type Container interface {
 	Start() error
 	Wait() error
 	Kill() error
 }
 
-type ShellProxy func(pname string, check ShellCheck) Check
-
-type HTTPProxy func(pname string, check HTTPCheck) Check
-
 type RuntimeStrategy struct {
 	Bootstrapper ContainerBootstrapper
-	ShellProxy   ShellProxy
-	HTTPProxy    HTTPProxy
 }
 
 // LoadPlugin takes in a path to a .so file and returns a RuntimeStrategy that can be
@@ -48,32 +41,35 @@ func LoadPlugin(path string) (RuntimeStrategy, error) {
 	if err != nil {
 		return strategy, errors.New("Bootstrapper is a mandatory part of the runtime")
 	}
-	strategy.Bootstrapper = bts.(ContainerBootstrapper)
 
-	shellProxy, err := p.Lookup("ShellProxy")
-	if err != nil {
-		shellProxy = func(_ string, check ShellCheck) Check { return check }
+	// Ensure that the bootstrapper function has the right type.
+	if _, ok := bts.(*func(spec oci.Spec) interface{}); !ok {
+		return strategy, fmt.Errorf("Type check failed for runtime bootstrapper in plugin %s", path)
 	}
-	strategy.ShellProxy = shellProxy.(ShellProxy)
 
-	httpProxy, err := p.Lookup("HTTPProxy")
-	if err != nil {
-		httpProxy = func(_ string, check HTTPCheck) Check { return check }
+	strategy.Bootstrapper = func(spec oci.Spec) (Container, error) {
+		fn := bts.(*func(spec oci.Spec) interface{})
+		val := (*fn)(spec)
+		if err, ok := val.(error); ok {
+			return nil, err
+		} else if ctn, ok := val.(Container); ok {
+			return ctn, nil
+		}
+		return nil, fmt.Errorf("Failed to cast return value of bootstrapper to Container")
 	}
-	strategy.HTTPProxy = httpProxy.(HTTPProxy)
 
 	return strategy, nil
 }
 
-// CheckFromCommand takes a command returned by the ContainerBootstrapper and returns a Check
+// CheckFromContainer takes a command returned by the ContainerBootstrapper and returns a Check
 // that syncronously Starts and Waits.
-func CheckFromCommand(command Command) Check {
-	return ShellCheck{
+func CheckFromContainer(ctn Container) Check {
+	return RunnerCheck{
 		Runner: func() error {
-			if err := command.Start(); err != nil {
+			if err := ctn.Start(); err != nil {
 				return err
 			}
-			return command.Wait()
+			return ctn.Wait()
 		},
 	}
 }

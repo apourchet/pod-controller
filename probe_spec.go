@@ -50,12 +50,12 @@ func (p ProbeSpec) GetCheck(pname string, runtime RuntimeStrategy) Check {
 	if p.Exec != nil {
 		cmd := exec.Command((*p.Exec)[0], (*p.Exec)[1:]...)
 		shellcheck := NewShellCheck(cmd)
-		return runtime.ShellProxy(pname, shellcheck)
+		return shellcheck
 	} else if p.HTTPGet != nil {
 		host := fmt.Sprintf("%s:%v", p.HTTPGet.Host, p.HTTPGet.Port)
 		httpcheck := NewHTTPCheck(host, p.HTTPGet.Path)
 		httpcheck.Scheme = p.HTTPGet.Scheme
-		return runtime.HTTPProxy(pname, httpcheck)
+		return httpcheck
 	}
 	return HealthyCheck{}
 }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"local/controller"
 	"os/exec"
 
 	oci "github.com/opencontainers/runtime-spec/specs-go"
@@ -15,7 +14,7 @@ func (command cmd) Kill() error { return command.Process.Kill() }
 
 // This bootstrapper only looks at the args, its as simple as it gets and does
 // almost nothing with the rest of the oci spec.
-var Bootstrapper = func(spec oci.Spec) (string, controller.Command, error) {
+var Bootstrapper = func(spec oci.Spec) interface{} {
 	command := exec.Command(spec.Process.Args[0], spec.Process.Args[1:]...)
-	return "", &cmd{command}, nil
+	return &cmd{command}
 }

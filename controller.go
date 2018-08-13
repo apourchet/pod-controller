@@ -89,7 +89,7 @@ func (c *controller) Start() error {
 	// First run the InitContainers of the pod. These containers will be
 	// run in sequence, and not healthchecked.
 	for _, spec := range c.Spec.InitContainers {
-		_, cmd, err := c.Runtime.Bootstrapper(spec)
+		cmd, err := c.Runtime.Bootstrapper(spec)
 		if err != nil {
 			return errors.WithStack(err)
 		}
@@ -112,20 +112,20 @@ func (c *controller) Start() error {
 			LatestErrors: []error{},
 		}
 
-		pname, cmd, err := c.Runtime.Bootstrapper(spec.Spec)
+		ctn, err := c.Runtime.Bootstrapper(spec.Spec)
 		if err != nil {
 			return errors.WithStack(err)
 		}
 
-		exitCheck := CheckFromCommand(cmd)
+		exitCheck := CheckFromContainer(ctn)
 		exitProbe := NewExitProbe(exitCheck)
 
-		livenessProbe, err := spec.LivenessProbe.Materialize(pname, c.Runtime)
+		livenessProbe, err := spec.LivenessProbe.Materialize("TODO", c.Runtime)
 		if err != nil {
 			return errors.WithStack(err)
 		}
 
-		readinessProbe, err := spec.ReadinessProbe.Materialize(pname, c.Runtime)
+		readinessProbe, err := spec.ReadinessProbe.Materialize("TODO", c.Runtime)
 		if err != nil {
 			return errors.WithStack(err)
 		}
