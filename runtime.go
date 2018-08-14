@@ -22,6 +22,7 @@ type Container interface {
 	Start() error
 	Wait() error
 	Kill() error
+	Exec(program string, arguments ...string) (int, error)
 }
 
 type RuntimeStrategy struct {
@@ -61,9 +62,9 @@ func LoadPlugin(path string) (RuntimeStrategy, error) {
 	return strategy, nil
 }
 
-// CheckFromContainer takes a command returned by the ContainerBootstrapper and returns a Check
+// ExitCheck takes a Container returned by the ContainerBootstrapper and returns a Check
 // that syncronously Starts and Waits.
-func CheckFromContainer(ctn Container) Check {
+func ExitCheck(ctn Container) Check {
 	return RunnerCheck{
 		Runner: func() error {
 			if err := ctn.Start(); err != nil {

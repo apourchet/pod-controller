@@ -2,7 +2,6 @@ package controller
 
 import (
 	"fmt"
-	"os/exec"
 	"time"
 )
 
@@ -46,17 +45,27 @@ func (p ProbeSpec) GetBaseProbe() BaseProbe {
 	}
 }
 
-func (p ProbeSpec) GetCheck(runtime RuntimeStrategy) Check {
-	if p.Exec != nil {
-		cmd := exec.Command((*p.Exec)[0], (*p.Exec)[1:]...)
-		shellcheck := NewShellCheck(cmd)
-		return shellcheck
-	} else if p.HTTPGet != nil {
+func (p ProbeSpec) GetCheck(ctn Container) Check {
+	if p.HTTPGet != nil {
 		host := fmt.Sprintf("%s:%v", p.HTTPGet.Host, p.HTTPGet.Port)
 		httpcheck := NewHTTPCheck(host, p.HTTPGet.Path)
 		httpcheck.Scheme = p.HTTPGet.Scheme
 		return httpcheck
+	} else if p.Exec != nil {
+		return RunnerCheck{
+			Runner: func() error {
+				code, err := ctn.Exec((*p.Exec)[0], (*p.Exec)[1:]...)
+				if err != nil {
+					return err
+				} else if code != 0 {
+					return fmt.Errorf("non-0 exit code on exec check: %d", code)
+				}
+				return nil
+			},
+		}
 	}
+
+	// By default a check will constantly return healthy.
 	return HealthyCheck{}
 }
 
@@ -64,15 +73,15 @@ type LivenessProbeSpec struct{ ProbeSpec }
 
 type ReadinessProbeSpec struct{ ProbeSpec }
 
-func (p LivenessProbeSpec) Materialize(runtime RuntimeStrategy) (Probe, error) {
-	check := p.GetCheck(runtime)
+func (p LivenessProbeSpec) Materialize(ctn Container) (Probe, error) {
+	check := p.GetCheck(ctn)
 	probe := NewLivenessProbe(check)
 	probe.BaseProbe = p.GetBaseProbe()
 	return probe, nil
 }
 
-func (p ReadinessProbeSpec) Materialize(runtime RuntimeStrategy) (Probe, error) {
-	check := p.GetCheck(runtime)
+func (p ReadinessProbeSpec) Materialize(ctn Container) (Probe, error) {
+	check := p.GetCheck(ctn)
 	probe := NewReadinessProbe(check)
 	probe.BaseProbe = p.GetBaseProbe()
 	return probe, nil

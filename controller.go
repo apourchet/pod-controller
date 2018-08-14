@@ -117,15 +117,15 @@ func (c *controller) Start() error {
 			return errors.WithStack(err)
 		}
 
-		exitCheck := CheckFromContainer(ctn)
+		exitCheck := ExitCheck(ctn)
 		exitProbe := NewExitProbe(exitCheck)
 
-		livenessProbe, err := spec.LivenessProbe.Materialize(c.Runtime)
+		livenessProbe, err := spec.LivenessProbe.Materialize(ctn)
 		if err != nil {
 			return errors.WithStack(err)
 		}
 
-		readinessProbe, err := spec.ReadinessProbe.Materialize(c.Runtime)
+		readinessProbe, err := spec.ReadinessProbe.Materialize(ctn)
 		if err != nil {
 			return errors.WithStack(err)
 		}
