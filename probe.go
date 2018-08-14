@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"runtime"
 	"sync"
 	"time"
 
@@ -115,6 +116,7 @@ func (p *LongLivedProbe) Start() {
 				success, err = p.Check.Run()
 				done <- true
 			}()
+			runtime.Gosched()
 
 			// Check for timeout of that tick here, and process the result of
 			// the tick.

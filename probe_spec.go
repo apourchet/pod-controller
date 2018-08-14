@@ -46,7 +46,7 @@ func (p ProbeSpec) GetBaseProbe() BaseProbe {
 	}
 }
 
-func (p ProbeSpec) GetCheck(pname string, runtime RuntimeStrategy) Check {
+func (p ProbeSpec) GetCheck(runtime RuntimeStrategy) Check {
 	if p.Exec != nil {
 		cmd := exec.Command((*p.Exec)[0], (*p.Exec)[1:]...)
 		shellcheck := NewShellCheck(cmd)
@@ -64,15 +64,15 @@ type LivenessProbeSpec struct{ ProbeSpec }
 
 type ReadinessProbeSpec struct{ ProbeSpec }
 
-func (p LivenessProbeSpec) Materialize(pname string, runtime RuntimeStrategy) (Probe, error) {
-	check := p.GetCheck(pname, runtime)
+func (p LivenessProbeSpec) Materialize(runtime RuntimeStrategy) (Probe, error) {
+	check := p.GetCheck(runtime)
 	probe := NewLivenessProbe(check)
 	probe.BaseProbe = p.GetBaseProbe()
 	return probe, nil
 }
 
-func (p ReadinessProbeSpec) Materialize(pname string, runtime RuntimeStrategy) (Probe, error) {
-	check := p.GetCheck(pname, runtime)
+func (p ReadinessProbeSpec) Materialize(runtime RuntimeStrategy) (Probe, error) {
+	check := p.GetCheck(runtime)
 	probe := NewReadinessProbe(check)
 	probe.BaseProbe = p.GetBaseProbe()
 	return probe, nil

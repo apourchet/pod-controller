@@ -8,7 +8,13 @@ import (
 )
 
 func TestLoadPlugin(t *testing.T) {
-	strat, err := controller.LoadPlugin("./bins/testing.so")
-	require.NoError(t, err)
-	require.NotNil(t, strat)
+	t.Run("run_correct_plugin", func(t *testing.T) {
+		strat, err := controller.LoadPlugin("./bins/testing.so")
+		require.NoError(t, err)
+		require.NotNil(t, strat)
+	})
+	t.Run("plugin_not_found", func(t *testing.T) {
+		_, err := controller.LoadPlugin("./bins/does_not_exist")
+		require.Error(t, err)
+	})
 }

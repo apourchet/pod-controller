@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"runtime"
 	"testing"
 	"time"
 
@@ -55,7 +56,10 @@ func (c *mockMultiCheck) Run() (bool, error) {
 	return check.Run()
 }
 
-func gosched() { time.Sleep(1 * time.Millisecond) }
+func gosched() {
+	time.Sleep(1 * time.Millisecond)
+	runtime.Gosched()
+}
 
 func TestLongLivedProbe(t *testing.T) {
 	t.Run("unhealthy_check", func(t *testing.T) {

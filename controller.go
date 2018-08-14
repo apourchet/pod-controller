@@ -68,7 +68,7 @@ type controller struct {
 	Clock clock.Clock
 }
 
-func NewPodController(spec PodSpec, runtimePath string) (PodController, error) {
+func NewPodController(spec PodSpec, runtimePath string) (*controller, error) {
 	runtime, err := LoadPlugin(runtimePath)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -120,12 +120,12 @@ func (c *controller) Start() error {
 		exitCheck := CheckFromContainer(ctn)
 		exitProbe := NewExitProbe(exitCheck)
 
-		livenessProbe, err := spec.LivenessProbe.Materialize("TODO", c.Runtime)
+		livenessProbe, err := spec.LivenessProbe.Materialize(c.Runtime)
 		if err != nil {
 			return errors.WithStack(err)
 		}
 
-		readinessProbe, err := spec.ReadinessProbe.Materialize("TODO", c.Runtime)
+		readinessProbe, err := spec.ReadinessProbe.Materialize(c.Runtime)
 		if err != nil {
 			return errors.WithStack(err)
 		}
@@ -165,6 +165,7 @@ func (c *controller) Healthy() bool {
 		if lastState == Started || lastState == Healthy || lastState == Unhealthy {
 			continue
 		}
+		fmt.Println("STATUS", lastState)
 		return false
 	}
 	return true
@@ -224,9 +225,7 @@ func (c *controller) nextState(status ContainerStatus, probes ProbeSet) (next Co
 		return Finished, restart, errs
 	case Terminal:
 		return Terminal, restart, errs
-	case Started:
-	case Healthy:
-	case Unhealthy:
+	case Started, Healthy, Unhealthy:
 		// If the container exited we can get the next state easily.
 		if !exitRunning {
 			if exitHealth {
@@ -252,4 +251,9 @@ func (c *controller) nextState(status ContainerStatus, probes ProbeSet) (next Co
 		panic(fmt.Sprintf("unrecognized state: %v", state))
 	}
 	return
+}
+
+// LastState returns the last state of the container status.
+func (status ContainerStatus) LastState() ContainerState {
+	return status.States[len(status.States)-1]
 }
