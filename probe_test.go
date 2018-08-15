@@ -61,6 +61,13 @@ func gosched() {
 	runtime.Gosched()
 }
 
+func timeTravel(clock *clock.Mock, count int, step time.Duration) {
+	for i := 0; i < count; i++ {
+		clock.Add(step)
+		gosched()
+	}
+}
+
 func TestLongLivedProbe(t *testing.T) {
 	t.Run("unhealthy_check", func(t *testing.T) {
 		clock := clock.NewMock()
@@ -76,10 +83,7 @@ func TestLongLivedProbe(t *testing.T) {
 		probe.Start()
 		gosched()
 
-		for i := 0; i < 2; i++ {
-			clock.Add(1 * time.Second)
-			gosched()
-		}
+		timeTravel(clock, 2, time.Second)
 
 		healthy, err := probe.Healthy()
 		require.False(t, healthy)
@@ -101,10 +105,7 @@ func TestLongLivedProbe(t *testing.T) {
 		probe.Start()
 		gosched()
 
-		for i := 0; i < 2; i++ {
-			clock.Add(1 * time.Second)
-			gosched()
-		}
+		timeTravel(clock, 2, time.Second)
 
 		healthy, err := probe.Healthy()
 		require.False(t, healthy)
@@ -125,10 +126,7 @@ func TestLongLivedProbe(t *testing.T) {
 		probe.Start()
 		gosched()
 
-		for i := 0; i < 2; i++ {
-			clock.Add(1 * time.Second)
-			gosched()
-		}
+		timeTravel(clock, 2, time.Second)
 
 		healthy, err := probe.Healthy()
 		require.True(t, healthy)
@@ -151,10 +149,7 @@ func TestLongLivedProbe(t *testing.T) {
 		probe.Start()
 		gosched()
 
-		for i := 0; i < 5; i++ {
-			clock.Add(1 * time.Second)
-			gosched()
-		}
+		timeTravel(clock, 5, time.Second)
 
 		healthy, err := probe.Healthy()
 		require.True(t, healthy)
@@ -177,10 +172,7 @@ func TestLongLivedProbe(t *testing.T) {
 		probe.Start()
 		gosched()
 
-		for i := 0; i < 5; i++ {
-			clock.Add(1 * time.Second)
-			gosched()
-		}
+		timeTravel(clock, 5, time.Second)
 
 		healthy, err := probe.Healthy()
 		require.False(t, healthy)
@@ -210,10 +202,7 @@ func TestLongLivedProbe(t *testing.T) {
 
 		// Since the probe is stopped the next check that would panic will not
 		// be run.
-		for i := 0; i < 5; i++ {
-			clock.Add(1 * time.Second)
-			gosched()
-		}
+		timeTravel(clock, 5, time.Second)
 
 		running := probe.Running()
 		require.False(t, running)

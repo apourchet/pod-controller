@@ -219,20 +219,15 @@ func (c *controller) nextState(status ContainerStatus, probes ProbeSet) (next Co
 	restart = false
 
 	switch state {
-	case Failed:
-		return Failed, restart, errs
-	case Finished:
-		return Finished, restart, errs
-	case Terminal:
-		return Terminal, restart, errs
+	case Failed, Finished, Terminal:
+		return state, restart, errs
 	case Started, Healthy, Unhealthy:
 		// If the container exited we can get the next state easily.
 		if !exitRunning {
 			if exitHealth {
 				return Finished, restart, errs
-			} else {
-				return Failed, restart, errs
 			}
+			return Failed, restart, errs
 		}
 
 		// If the container did not exit yet we need to check that the liveness

@@ -40,10 +40,7 @@ func TestController(t *testing.T) {
 		err = controller.Start()
 		require.NoError(t, err)
 
-		for i := 0; i < 10; i++ {
-			clock.Add(1 * time.Second)
-			gosched()
-		}
+		timeTravel(clock, 10, time.Second)
 
 		healthy := controller.Healthy()
 		require.True(t, healthy)
@@ -75,10 +72,7 @@ func TestController(t *testing.T) {
 		err = controller.Start()
 		require.NoError(t, err)
 
-		for i := 0; i < 10; i++ {
-			clock.Add(1 * time.Second)
-			gosched()
-		}
+		timeTravel(clock, 10, time.Second)
 
 		healthy := controller.Healthy()
 		require.False(t, healthy)

@@ -2,9 +2,7 @@ package main
 
 import (
 	"fmt"
-	"os/exec"
 	"strconv"
-	"syscall"
 	"time"
 
 	oci "github.com/opencontainers/runtime-spec/specs-go"
@@ -55,16 +53,17 @@ func (ctn *container) Kill() error { return nil }
 
 // Exec just executes the command on the host.
 func (ctn *container) Exec(program string, arguments ...string) (code int, err error) {
-	cmd := exec.Command(program, arguments...)
-	err = cmd.Run()
-	if err == nil {
-		return 0, nil
-	} else if exiterr, ok := err.(*exec.ExitError); ok {
-		if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-			return status.ExitStatus(), err
-		}
+	newctn := &container{
+		program:   program,
+		arguments: arguments,
+		waitChan:  make(chan int, 0),
 	}
-	return 1, err
+	if err := newctn.Start(); err != nil {
+		return 1, err
+	} else if err := newctn.Wait(); err != nil {
+		return 1, err
+	}
+	return 0, nil
 }
 
 // Bootstrapper only looks at the args, its as simple as it gets and does
