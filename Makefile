@@ -10,11 +10,14 @@ bins/controller: $(wildcard *.go) $(wildcard ./cmd/*.go)
 bins/%: $(wildcard runtimes/**/*.go)
 	go build -buildmode=plugin -o $@ runtimes/$(notdir $@)/*.go
 
-.PHONY: test integration coverage-browse clean
-test: $(RUNTIMES)
+.PHONY: test unit-test integration coverage-browse clean
+
+test: unit-test integration
+
+unit-test: $(RUNTIMES)
 	go test -v --coverprofile=cover.out ./...
 
-coverage-browse: test
+coverage-browse: unit-test
 	go tool cover --html=cover.out
 
 integration: bins
