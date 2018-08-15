@@ -10,16 +10,15 @@ bins/controller: $(wildcard *.go) $(wildcard ./cmd/*.go)
 bins/%: $(wildcard runtimes/**/*.go)
 	go build -buildmode=plugin -o $@ runtimes/$(notdir $@)/*.go
 
-.PHONY: test coverage-browse clean
+.PHONY: test integration coverage-browse clean
 test: $(RUNTIMES)
 	go test -v --coverprofile=cover.out ./...
 
 coverage-browse: test
 	go tool cover --html=cover.out
 
+integration: bins
+	pytest ./tests/python/
+
 clean:
 	 rm bins/*
-
-# TODO: Remove these temp targets
-run-bin: bins
-	./bins/controller --spec tests/specs/unhealthy_forever.json

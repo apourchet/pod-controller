@@ -25,7 +25,7 @@ var app Application
 func init() {
 	flag.StringVar(&app.RuntimePath, "runtime", "./bins/shellout.so", "The path to the runtime plugin library")
 	flag.StringVar(&app.SpecPath, "spec", "/spec.json", "The path to the podspec to start")
-	flag.IntVar(&app.StatusPort, "status", 8888, "The port that we will listen on to report the status of the pod")
+	flag.IntVar(&app.StatusPort, "port", 8888, "The port that we will listen on to report the status of the pod")
 }
 
 func main() {
@@ -48,10 +48,13 @@ func main() {
 	log.Println("pod controller started")
 
 	createHandlers(ctrl)
-	http.ListenAndServe(fmt.Sprintf(":%d", app.StatusPort), nil)
+	if err = http.ListenAndServe(fmt.Sprintf(":%d", app.StatusPort), nil); err != nil {
+		log.Fatalf("failed to create listen on given port %d: %v", app.StatusPort, err)
+	}
 }
 
 func createHandlers(ctrl controller.PodController) {
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })
 	http.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
 		statuses := ctrl.Status()
 		content, err := json.Marshal(statuses)
@@ -65,7 +68,7 @@ func createHandlers(ctrl controller.PodController) {
 	})
 	http.HandleFunc("/healthy", func(w http.ResponseWriter, r *http.Request) {
 		healthy := ctrl.Healthy()
-		content := fmt.Sprintf(`{"healthy":"%v"}`, healthy)
+		content := fmt.Sprintf(`{"healthy":%v}`, healthy)
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(content))
 	})

@@ -1,3 +1,5 @@
 bins
 cover.out
 cmd/cmd
+.pytest_cache
+*.pyc
