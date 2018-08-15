@@ -27,22 +27,8 @@ func TestController(t *testing.T) {
 							Args: []string{"sleep", "1000"},
 						},
 					},
-					LivenessProbe: LivenessProbeSpec{
-						ProbeSpec{
-							PeriodSeconds:    5,
-							TimeoutSeconds:   1,
-							SuccessThreshold: 1,
-							FailureThreshold: 1,
-						},
-					},
-					ReadinessProbe: ReadinessProbeSpec{
-						ProbeSpec{
-							PeriodSeconds:    5,
-							TimeoutSeconds:   1,
-							SuccessThreshold: 1,
-							FailureThreshold: 1,
-						},
-					},
+					LivenessProbe:  LivenessProbeSpec{NewProbeSpec()},
+					ReadinessProbe: ReadinessProbeSpec{NewProbeSpec()},
 				},
 			},
 		}
@@ -76,22 +62,8 @@ func TestController(t *testing.T) {
 							Args: []string{"false"},
 						},
 					},
-					LivenessProbe: LivenessProbeSpec{
-						ProbeSpec{
-							PeriodSeconds:    5,
-							TimeoutSeconds:   1,
-							SuccessThreshold: 1,
-							FailureThreshold: 1,
-						},
-					},
-					ReadinessProbe: ReadinessProbeSpec{
-						ProbeSpec{
-							PeriodSeconds:    5,
-							TimeoutSeconds:   1,
-							SuccessThreshold: 1,
-							FailureThreshold: 1,
-						},
-					},
+					LivenessProbe:  LivenessProbeSpec{NewProbeSpec()},
+					ReadinessProbe: ReadinessProbeSpec{NewProbeSpec()},
 				},
 			},
 		}

@@ -7,16 +7,20 @@ import (
 	oci "github.com/opencontainers/runtime-spec/specs-go"
 )
 
-type cmd struct {
-	*exec.Cmd
+type container struct {
+	cmd *exec.Cmd
 }
 
-// Kill is stubbed for this implementation.
-func (command *cmd) Kill() error { return command.Process.Kill() }
+func (ctn *container) Start() error { return ctn.cmd.Start() }
 
-func (command *cmd) Exec(program string, arguments ...string) (code int, err error) {
-	cmd := exec.Command(program, arguments...)
-	err = cmd.Run()
+func (ctn *container) Wait() error { return ctn.cmd.Wait() }
+
+// Kill is stubbed for this implementation.
+func (ctn *container) Kill() error { return ctn.cmd.Process.Kill() }
+
+func (ctn *container) Exec(program string, arguments ...string) (code int, err error) {
+	command := exec.Command(program, arguments...)
+	err = command.Run()
 	if err == nil {
 		return 0, nil
 	} else if exiterr, ok := err.(*exec.ExitError); ok {
@@ -31,5 +35,5 @@ func (command *cmd) Exec(program string, arguments ...string) (code int, err err
 // almost nothing with the rest of the oci spec.
 var Bootstrapper = func(spec oci.Spec) interface{} {
 	command := exec.Command(spec.Process.Args[0], spec.Process.Args[1:]...)
-	return &cmd{command}
+	return &container{cmd: command}
 }

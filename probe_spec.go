@@ -35,6 +35,15 @@ type ProbeSpec struct {
 	TimeoutSeconds      int
 }
 
+func NewProbeSpec() ProbeSpec {
+	return ProbeSpec{
+		PeriodSeconds:    5,
+		TimeoutSeconds:   1,
+		SuccessThreshold: 1,
+		FailureThreshold: 1,
+	}
+}
+
 func (p ProbeSpec) GetBaseProbe() BaseProbe {
 	return BaseProbe{
 		InitialDelay:     time.Duration(p.InitialDelaySeconds) * time.Second,
