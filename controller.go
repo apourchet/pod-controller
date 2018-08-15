@@ -54,6 +54,8 @@ type ContainerSpec struct {
 
 // controller implements the PodController interface.
 type controller struct {
+	// TODO: concurrent access
+
 	Spec PodSpec
 
 	// The container launching strategy
@@ -165,7 +167,6 @@ func (c *controller) Healthy() bool {
 		if lastState == Started || lastState == Healthy || lastState == Unhealthy {
 			continue
 		}
-		fmt.Println("STATUS", lastState)
 		return false
 	}
 	return true
@@ -186,7 +187,7 @@ func (c *controller) watch() {
 			errs = filterErrors(errs)
 
 			newStatus := ContainerStatus{
-				States:       []ContainerState{state},
+				States:       append(status.States, state),
 				LatestErrors: append(status.LatestErrors, errs...),
 			}
 			if mustRestart {

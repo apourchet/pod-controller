@@ -27,7 +27,7 @@ func TestController(t *testing.T) {
 							Args: []string{"sleep", "1000"},
 						},
 					},
-					LivenessProbe:  LivenessProbeSpec{NewProbeSpec()},
+					LivenessProbe:  LivenessProbeSpec{NewProbeSpec().setExec("true")},
 					ReadinessProbe: ReadinessProbeSpec{NewProbeSpec()},
 				},
 			},
@@ -56,10 +56,10 @@ func TestController(t *testing.T) {
 					Name: "main",
 					Spec: oci.Spec{
 						Process: &oci.Process{
-							Args: []string{"false"},
+							Args: []string{"sleep", "1000"},
 						},
 					},
-					LivenessProbe:  LivenessProbeSpec{NewProbeSpec()},
+					LivenessProbe:  LivenessProbeSpec{NewProbeSpec().setExec("false")},
 					ReadinessProbe: ReadinessProbeSpec{NewProbeSpec()},
 				},
 			},
@@ -79,7 +79,7 @@ func TestController(t *testing.T) {
 
 		statuses := controller.Status()
 		require.Lenf(t, statuses, 1, "should only have 1 status")
-		require.Equal(t, Failed, statuses[0].LastState())
+		require.Equal(t, Terminal, statuses[0].LastState())
 	})
 	t.Run("single_healthy_then_unhealthy", func(t *testing.T) {
 		// TODO: write tests

@@ -78,6 +78,12 @@ func (p ProbeSpec) GetCheck(ctn Container) Check {
 	return HealthyCheck{}
 }
 
+func (p ProbeSpec) setExec(program string, arguments ...string) ProbeSpec {
+	exec := append([]string{program}, arguments...)
+	p.Exec = &exec
+	return p
+}
+
 type LivenessProbeSpec struct{ ProbeSpec }
 
 type ReadinessProbeSpec struct{ ProbeSpec }
