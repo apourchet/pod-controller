@@ -1,0 +1,10 @@
+{
+    "containers": [
+        {
+            "name": "main",
+            "process": {
+                "args": ["sleep", "1000"]
+            }
+        }
+    ]
+}

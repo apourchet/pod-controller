@@ -50,6 +50,10 @@ func LoadPlugin(path string) (RuntimeStrategy, error) {
 
 	strategy.Bootstrapper = func(spec oci.Spec) (Container, error) {
 		fn := bts.(*func(spec oci.Spec) interface{})
+		if fn == nil {
+			return nil, fmt.Errorf("The bootstrapper function was nil")
+		}
+
 		val := (*fn)(spec)
 		if err, ok := val.(error); ok {
 			return nil, err

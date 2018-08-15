@@ -75,6 +75,7 @@ func NewPodController(spec PodSpec, runtimePath string) (*controller, error) {
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
+
 	return &controller{
 		Spec:     spec,
 		Runtime:  runtime,
