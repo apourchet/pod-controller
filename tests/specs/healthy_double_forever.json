@@ -13,6 +13,20 @@
                 "successThreshold": 1,
                 "failureThreshold": 1
             }
+        },
+        {
+            "name": "sidecar",
+            "process": {
+                "args": ["sleep", "1001"]
+            },
+            "livenessProbe": {
+                "exec": ["/usr/bin/true"],
+                "initialDelaySeconds": 1,
+                "periodSeconds": 2,
+                "timeoutSeconds": 1,
+                "successThreshold": 1,
+                "failureThreshold": 1
+            }
         }
     ]
 }

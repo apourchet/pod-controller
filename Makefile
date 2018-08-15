@@ -19,3 +19,7 @@ coverage-browse: test
 
 clean:
 	 rm bins/*
+
+# TODO: Remove these temp targets
+run-bin: bins
+	./bins/controller --spec tests/specs/unhealthy_forever.json

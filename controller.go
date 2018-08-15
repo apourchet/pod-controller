@@ -26,6 +26,7 @@ const (
 )
 
 type ContainerStatus struct {
+	Name         string
 	States       []ContainerState
 	LatestErrors []error
 	Restarts     int
@@ -111,6 +112,7 @@ func (c *controller) Start() error {
 	// start that container and start the probes related to it.
 	for _, spec := range c.Spec.Containers {
 		c.Statuses[spec.Name] = ContainerStatus{
+			Name:         spec.Name,
 			States:       []ContainerState{Started},
 			LatestErrors: []error{},
 		}
@@ -187,7 +189,14 @@ func (c *controller) watch() {
 			state, mustRestart, errs := c.nextState(status, probeset)
 			errs = filterErrors(errs)
 
+			// If the state does not change, just continue to the next set
+			// of probes.
+			if state == status.LastState() {
+				continue
+			}
+
 			newStatus := ContainerStatus{
+				Name:         status.Name,
 				States:       append(status.States, state),
 				LatestErrors: append(status.LatestErrors, errs...),
 			}
@@ -196,6 +205,7 @@ func (c *controller) watch() {
 				// TODO: restart container and change newStatus
 			}
 
+			// TODO: Prune that new status so that memory never explodes.
 			c.Statuses[cname] = newStatus
 		}
 		c.Clock.Sleep(1 * time.Second)

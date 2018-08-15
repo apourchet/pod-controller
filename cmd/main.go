@@ -7,6 +7,9 @@ import (
 	"io/ioutil"
 	"local/controller"
 	"log"
+	"net/http"
+	"os"
+	"time"
 
 	yaml "gopkg.in/yaml.v2"
 )
@@ -14,6 +17,7 @@ import (
 type Application struct {
 	RuntimePath string
 	SpecPath    string
+	StatusPort  int
 }
 
 var app Application
@@ -21,6 +25,7 @@ var app Application
 func init() {
 	flag.StringVar(&app.RuntimePath, "runtime", "./bins/shellout.so", "The path to the runtime plugin library")
 	flag.StringVar(&app.SpecPath, "spec", "/spec.json", "The path to the podspec to start")
+	flag.IntVar(&app.StatusPort, "status", 8888, "The port that we will listen on to report the status of the pod")
 }
 
 func main() {
@@ -41,7 +46,36 @@ func main() {
 	}
 	ctrl.Start()
 	log.Println("pod controller started")
-	select {}
+
+	createHandlers(ctrl)
+	http.ListenAndServe(fmt.Sprintf(":%d", app.StatusPort), nil)
+}
+
+func createHandlers(ctrl controller.PodController) {
+	http.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
+		statuses := ctrl.Status()
+		content, err := json.Marshal(statuses)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(err.Error()))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write(content)
+	})
+	http.HandleFunc("/healthy", func(w http.ResponseWriter, r *http.Request) {
+		healthy := ctrl.Healthy()
+		content := fmt.Sprintf(`{"healthy":"%v"}`, healthy)
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(content))
+	})
+	http.HandleFunc("/kill", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		go func() {
+			time.Sleep(100 * time.Millisecond)
+			os.Exit(1)
+		}()
+	})
 }
 
 func unmarshal(contents []byte, spec *controller.PodSpec) error {
