@@ -19,3 +19,12 @@ func filterErrors(errs []error) []error {
 	}
 	return filtered
 }
+
+func stringifyErrors(errs []error) []string {
+	errs = filterErrors(errs)
+	out := []string{}
+	for _, err := range errs {
+		out = append(out, err.Error())
+	}
+	return out
+}

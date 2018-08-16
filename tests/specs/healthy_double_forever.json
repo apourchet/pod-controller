@@ -3,27 +3,27 @@
         {
             "name": "main",
             "process": {
-                "args": ["sleep", "1000"]
+                "args": ["/bin/sh", "-c", "touch /tmp/health && sleep 1000"]
             },
             "livenessProbe": {
-                "exec": ["/bin/sh", "-c", "true"],
+                "exec": ["/bin/sh", "-c", "sleep 1 && cat /tmp/health"],
                 "initialDelaySeconds": 1,
                 "periodSeconds": 2,
-                "timeoutSeconds": 1,
+                "timeoutSeconds": 2,
                 "successThreshold": 1,
-                "failureThreshold": 1
+                "failureThreshold": 30
             }
         },
         {
             "name": "sidecar",
             "process": {
-                "args": ["sleep", "1001"]
+                "args": ["/bin/sh", "-c", "touch /tmp/health && sleep 1001"]
             },
             "livenessProbe": {
-                "exec": ["/bin/sh", "-c", "true"],
+                "exec": ["/bin/sh", "-c", "sleep 1 && cat /tmp/health"],
                 "initialDelaySeconds": 1,
                 "periodSeconds": 2,
-                "timeoutSeconds": 1,
+                "timeoutSeconds": 2,
                 "successThreshold": 1,
                 "failureThreshold": 1
             }

@@ -31,3 +31,19 @@ integration: bins
 
 clean:
 	 rm bins/*
+
+# TODO: remove temp targets
+.PHONY: demo demo-watch demo-kill
+demo:
+	docker build -t pod-controller .
+	docker run -it --rm \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		-v /Users/pourchet/gocode/src/local/controller/tests/specs/healthy_double_forever.json:/spec.json \
+		-p 8888:8888 \
+		pod-controller --runtime /bins/docker-simple.so
+
+demo-watch:
+	watch 'docker ps && echo "" && curl -s localhost:8888/healthy && echo "" && curl -s localhost:8888/status | jq .'
+
+demo-kill:
+	curl localhost:8888/kill

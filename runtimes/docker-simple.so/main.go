@@ -51,7 +51,7 @@ func (ctn *container) Wait() error {
 }
 
 func (ctn *container) Kill(signal int) error {
-	return ctn.client.ContainerKill(context.Background(), ctn.ID, "9")
+	return ctn.client.ContainerKill(context.Background(), ctn.ID, fmt.Sprintf("%d", signal))
 }
 
 func (ctn *container) Exec(program string, arguments ...string) (code int, err error) {
@@ -75,7 +75,6 @@ func (ctn *container) Exec(program string, arguments ...string) (code int, err e
 			fmt.Println("ExecInspect error", err)
 			return 1, err
 		} else if !inspect.Running {
-			fmt.Printf("inspect: %+v\n", inspect)
 			return inspect.ExitCode, nil
 		}
 		time.Sleep(100 * time.Millisecond)

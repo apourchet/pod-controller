@@ -28,16 +28,29 @@ const (
 type ContainerStatus struct {
 	Name         string
 	States       []ContainerState
-	LatestErrors []error
+	LatestErrors []*ProbeError
 	Restarts     int
 
+	ctn  Container
 	spec ContainerSpec
+}
+
+type ProbeError struct {
+	Message   string
+	Timestamp time.Time
 }
 
 type PodController interface {
 	Start() error
 	Status() []ContainerStatus
-	Healthy() bool // False should cause the pod to be restarted
+
+	// Kill tries to send the signal to the containers and returns the status
+	// of the containers.
+	Kill(signal int) []ContainerStatus
+
+	// This is the healthy bit that the pod controller should aim to get right
+	// as it will determine when the pod should get rescheduled.
+	Healthy() bool
 }
 
 type PodSpec struct {
@@ -63,7 +76,8 @@ type controller struct {
 	Runtime RuntimeStrategy
 
 	// A map from container ID/name to container status
-	Statuses map[string]ContainerStatus
+	Statuses    map[string]*ContainerStatus
+	StatusSlice []*ContainerStatus
 
 	// A map from container ID/name to its probes
 	Probes map[string]ProbeSet
@@ -78,11 +92,12 @@ func NewPodController(spec PodSpec, runtimePath string) (*controller, error) {
 	}
 
 	return &controller{
-		Spec:     spec,
-		Runtime:  runtime,
-		Statuses: map[string]ContainerStatus{},
-		Probes:   map[string]ProbeSet{},
-		Clock:    clock.New(),
+		Spec:        spec,
+		Runtime:     runtime,
+		Statuses:    map[string]*ContainerStatus{},
+		StatusSlice: []*ContainerStatus{},
+		Probes:      map[string]ProbeSet{},
+		Clock:       clock.New(),
 	}, nil
 }
 
@@ -111,16 +126,20 @@ func (c *controller) Start() error {
 	// For each one of the containers in the spec, we create a status and we
 	// start that container and start the probes related to it.
 	for _, spec := range c.Spec.Containers {
-		c.Statuses[spec.Name] = ContainerStatus{
+		status := &ContainerStatus{
 			Name:         spec.Name,
 			States:       []ContainerState{Started},
-			LatestErrors: []error{},
+			LatestErrors: []*ProbeError{},
+			spec:         spec,
 		}
+		c.Statuses[spec.Name] = status
+		c.StatusSlice = append(c.StatusSlice, status)
 
 		ctn, err := c.Runtime.Bootstrapper(spec.Spec)
 		if err != nil {
 			return errors.WithStack(err)
 		}
+		c.Statuses[spec.Name].ctn = ctn
 
 		exitCheck := ExitCheck(ctn)
 		exitProbe := NewExitProbe(exitCheck)
@@ -153,10 +172,25 @@ func (c *controller) Start() error {
 // for display.
 func (c *controller) Status() []ContainerStatus {
 	statuses := []ContainerStatus{}
-	for _, status := range c.Statuses {
-		statuses = append(statuses, status)
+	for _, status := range c.StatusSlice {
+		statuses = append(statuses, *status)
 	}
 	return statuses
+}
+
+// Kill sends the kill signal to all of the containers in the pod.
+func (c *controller) Kill(signal int) []ContainerStatus {
+	for cname, status := range c.Statuses {
+		if err := status.ctn.Kill(signal); err != nil {
+			err = fmt.Errorf("failed to send kill signal %d to container %s: %v",
+				signal, cname, err)
+			status.LatestErrors = append(status.LatestErrors, &ProbeError{
+				Message:   err.Error(),
+				Timestamp: c.Clock.Now(),
+			})
+		}
+	}
+	return c.Status()
 }
 
 // Healthy only looks through the container statuses to determine the health of the pod,
@@ -186,8 +220,23 @@ func (c *controller) watch() {
 	for {
 		for cname, probeset := range c.Probes {
 			status := c.Statuses[cname]
-			state, mustRestart, errs := c.nextState(status, probeset)
+			state, mustRestart, errs := c.nextState(*status, probeset)
 			errs = filterErrors(errs)
+
+			// If we get an error we havent seen before we will append it to our list
+			// of latest errors.
+			if len(errs) > 0 {
+				if status.LatestError().Message != errs[0].Error() {
+					for _, msg := range stringifyErrors(errs) {
+						c.Statuses[cname].LatestErrors = append(status.LatestErrors, &ProbeError{
+							Message:   msg,
+							Timestamp: c.Clock.Now(),
+						})
+					}
+				} else {
+					status.LatestError().Timestamp = c.Clock.Now()
+				}
+			}
 
 			// If the state does not change, just continue to the next set
 			// of probes.
@@ -195,18 +244,14 @@ func (c *controller) watch() {
 				continue
 			}
 
-			newStatus := ContainerStatus{
-				Name:         status.Name,
-				States:       append(status.States, state),
-				LatestErrors: append(status.LatestErrors, errs...),
-			}
+			c.Statuses[cname].States = append(status.States, state)
+
 			if mustRestart {
-				newStatus.Restarts += 1
+				c.Statuses[cname].Restarts += 1
 				// TODO: restart container and change newStatus
 			}
 
 			// TODO: Prune that new status so that memory never explodes.
-			c.Statuses[cname] = newStatus
 		}
 		c.Clock.Sleep(1 * time.Second)
 		// TODO stopping mechanism
@@ -263,4 +308,13 @@ func (c *controller) nextState(status ContainerStatus, probes ProbeSet) (next Co
 // LastState returns the last state of the container status.
 func (status ContainerStatus) LastState() ContainerState {
 	return status.States[len(status.States)-1]
+}
+
+// LatestError returns the latest error that the container has received, or the
+// empty string if there are none.
+func (status ContainerStatus) LatestError() *ProbeError {
+	if len(status.LatestErrors) == 0 {
+		return &ProbeError{Message: ""}
+	}
+	return status.LatestErrors[len(status.LatestErrors)-1]
 }

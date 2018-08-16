@@ -74,6 +74,7 @@ func createHandlers(ctrl controller.PodController) {
 		w.Write([]byte(content))
 	})
 	http.HandleFunc("/kill", func(w http.ResponseWriter, r *http.Request) {
+		ctrl.Kill(9)
 		w.WriteHeader(http.StatusOK)
 		go func() {
 			time.Sleep(100 * time.Millisecond)

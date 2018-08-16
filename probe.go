@@ -47,20 +47,24 @@ func (p *BaseProbe) onTickResult(success bool, err error) {
 	defer p.Unlock()
 	p.hasFailed = p.hasFailed || !success
 	p.hasSucceeded = p.hasSucceeded || success
-	if err != nil || !success {
+	if err != nil {
 		p.err = err
+	}
+
+	if !success {
 		p.consecutiveFailures += 1
 		p.consecutiveSuccesses = 0
-		return
+	} else {
+		p.consecutiveFailures = 0
+		p.consecutiveSuccesses += 1
 	}
-	p.consecutiveFailures = 0
-	p.consecutiveSuccesses += 1
 	return
 }
 
 func (p *BaseProbe) onTimeout() {
 	p.Lock()
 	defer p.Unlock()
+	p.hasFailed = true
 	p.consecutiveFailures += 1
 	p.consecutiveSuccesses = 0
 }
