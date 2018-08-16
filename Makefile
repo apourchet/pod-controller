@@ -5,10 +5,10 @@ RUNTIMES := $(shell bash -c 'ls runtimes | while read line; do echo bins/$$line;
 bins: bins/controller $(RUNTIMES)
 
 bins/controller: $(wildcard *.go) $(wildcard ./cmd/*.go)
-	go build -o bins/controller cmd/*.go
+	CGO_ENABLED=1 go build -gcflags '-N -l' -o bins/controller cmd/*.go
 
 bins/%: $(wildcard runtimes/**/*.go)
-	go build -buildmode=plugin -o $@ runtimes/$(notdir $@)/*.go
+	CGO_ENABLED=1 go build -gcflags '-N -l' -buildmode=plugin -o $@ runtimes/$(notdir $@)/*.go
 
 .PHONY: test unit-test integration coverage-browse clean
 

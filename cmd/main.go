@@ -40,6 +40,7 @@ func main() {
 	}
 
 	log.Printf("PodSpec: %+v\n", spec)
+	log.Printf("Runtime Plugin: %s\n", app.RuntimePath)
 	ctrl, err := controller.NewPodController(spec, app.RuntimePath)
 	if err != nil {
 		log.Fatalf("failed to initialize pod controller: %v", err)

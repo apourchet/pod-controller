@@ -6,7 +6,7 @@
                 "args": ["sleep", "1000"]
             },
             "livenessProbe": {
-                "exec": ["/usr/bin/true"],
+                "exec": ["/bin/sh", "-c", "true"],
                 "initialDelaySeconds": 1,
                 "periodSeconds": 2,
                 "timeoutSeconds": 1,
@@ -20,7 +20,7 @@
                 "args": ["sleep", "1001"]
             },
             "livenessProbe": {
-                "exec": ["/usr/bin/true"],
+                "exec": ["/bin/sh", "-c", "true"],
                 "initialDelaySeconds": 1,
                 "periodSeconds": 2,
                 "timeoutSeconds": 1,
