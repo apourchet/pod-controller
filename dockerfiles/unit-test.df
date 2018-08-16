@@ -1,0 +1,5 @@
+FROM golang:1.10
+
+ADD . /go/src/local/controller
+WORKDIR /go/src/local/controller
+RUN make clean unit-test
