@@ -15,8 +15,7 @@ func (ctn *container) Start() error { return ctn.cmd.Start() }
 
 func (ctn *container) Wait() error { return ctn.cmd.Wait() }
 
-// Kill is stubbed for this implementation.
-func (ctn *container) Kill() error { return ctn.cmd.Process.Kill() }
+func (ctn *container) Kill(signal int) error { return ctn.cmd.Process.Kill() }
 
 func (ctn *container) Exec(program string, arguments ...string) (code int, err error) {
 	command := exec.Command(program, arguments...)

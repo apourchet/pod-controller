@@ -49,7 +49,7 @@ func (ctn *container) Wait() error {
 }
 
 // Kill is stubbed for this implementation.
-func (ctn *container) Kill() error { return nil }
+func (ctn *container) Kill(signal int) error { return nil }
 
 // Exec just executes the command on the host.
 func (ctn *container) Exec(program string, arguments ...string) (code int, err error) {

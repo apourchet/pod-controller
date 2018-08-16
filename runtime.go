@@ -21,7 +21,7 @@ type ContainerBootstrapper func(args oci.Spec) (Container, error)
 type Container interface {
 	Start() error
 	Wait() error
-	Kill() error
+	Kill(signal int) error
 	Exec(program string, arguments ...string) (int, error)
 }
 

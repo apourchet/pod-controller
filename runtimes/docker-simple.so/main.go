@@ -21,8 +21,6 @@ type container struct {
 	client    *client.Client
 }
 
-const DockerBin = "/usr/local/bin/docker"
-
 func (ctn *container) Start() error {
 	config := &docker_container.Config{
 		Image: ctn.image,
@@ -52,8 +50,7 @@ func (ctn *container) Wait() error {
 	return nil
 }
 
-// Kill is stubbed for this implementation.
-func (ctn *container) Kill() error {
+func (ctn *container) Kill(signal int) error {
 	return ctn.client.ContainerKill(context.Background(), ctn.ID, "9")
 }
 
