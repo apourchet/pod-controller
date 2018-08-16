@@ -38,7 +38,7 @@ demo:
 	docker build -t pod-controller .
 	docker run -it --rm \
 		-v /var/run/docker.sock:/var/run/docker.sock \
-		-v /Users/pourchet/gocode/src/local/controller/tests/specs/healthy_double_forever.json:/spec.json \
+		-v $(shell pwd)/tests/specs/healthy_double_forever.json:/spec.json \
 		-p 8888:8888 \
 		pod-controller --runtime /bins/docker-simple.so
 
