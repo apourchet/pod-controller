@@ -16,7 +16,7 @@ import (
 // In the controller package (aliased above as ctrl) we will have the following type
 // declarations:
 // https://github.com/opencontainers/runtime-spec/blob/master/specs-go/config.go
-type ContainerBootstrapper func(args oci.Spec) (Container, error)
+type ContainerBootstrapper func(args oci.Spec, meta map[string]interface{}) (Container, error)
 
 type Container interface {
 	Start() error
@@ -44,18 +44,18 @@ func LoadPlugin(path string) (RuntimeStrategy, error) {
 	}
 
 	// Ensure that the bootstrapper function has the right type.
-	if _, ok := bts.(*func(spec oci.Spec) interface{}); !ok {
+	if _, ok := bts.(*func(spec oci.Spec, meta map[string]interface{}) (interface{}, error)); !ok {
 		return strategy, fmt.Errorf("Type check failed for runtime bootstrapper in plugin %s", path)
 	}
 
-	strategy.Bootstrapper = func(spec oci.Spec) (Container, error) {
-		fn := bts.(*func(spec oci.Spec) interface{})
+	strategy.Bootstrapper = func(spec oci.Spec, meta map[string]interface{}) (Container, error) {
+		fn := bts.(*func(spec oci.Spec, meta map[string]interface{}) (interface{}, error))
 		if fn == nil {
 			return nil, fmt.Errorf("The bootstrapper function was nil")
 		}
 
-		val := (*fn)(spec)
-		if err, ok := val.(error); ok {
+		val, err := (*fn)(spec, meta)
+		if err != nil {
 			return nil, err
 		} else if ctn, ok := val.(Container); ok {
 			return ctn, nil

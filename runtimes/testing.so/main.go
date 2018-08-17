@@ -68,10 +68,10 @@ func (ctn *container) Exec(program string, arguments ...string) (code int, err e
 
 // Bootstrapper only looks at the args, its as simple as it gets and does
 // almost nothing with the rest of the oci spec.
-var Bootstrapper = func(spec oci.Spec) interface{} {
+var Bootstrapper = func(spec oci.Spec, _ map[string]interface{}) (interface{}, error) {
 	return &container{
 		program:   spec.Process.Args[0],
 		arguments: spec.Process.Args[1:],
 		waitChan:  make(chan int, 0),
-	}
+	}, nil
 }

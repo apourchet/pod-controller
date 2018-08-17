@@ -12,10 +12,12 @@ import (
 func TestController(t *testing.T) {
 	t.Run("single_healthy", func(t *testing.T) {
 		spec := PodSpec{
-			InitContainers: []oci.Spec{
+			InitContainers: []InitContainerSpec{
 				{
-					Process: &oci.Process{
-						Args: []string{"true"},
+					Spec: oci.Spec{
+						Process: &oci.Process{
+							Args: []string{"true"},
+						},
 					},
 				},
 			},

@@ -54,16 +54,23 @@ type PodController interface {
 }
 
 type PodSpec struct {
-	InitContainers []oci.Spec
+	InitContainers []InitContainerSpec
 	Containers     []ContainerSpec
 }
 
-type ContainerSpec struct {
-	oci.Spec
+type InitContainerSpec struct {
+	Name     string
+	Spec     oci.Spec
+	Metadata map[string]interface{}
+}
 
+type ContainerSpec struct {
 	Name           string
+	Spec           oci.Spec
 	LivenessProbe  LivenessProbeSpec
 	ReadinessProbe ReadinessProbeSpec
+
+	Metadata map[string]interface{}
 }
 
 // controller implements the PodController interface.
@@ -108,7 +115,7 @@ func (c *controller) Start() error {
 	// First run the InitContainers of the pod. These containers will be
 	// run in sequence, and not healthchecked.
 	for _, spec := range c.Spec.InitContainers {
-		cmd, err := c.Runtime.Bootstrapper(spec)
+		cmd, err := c.Runtime.Bootstrapper(spec.Spec, spec.Metadata)
 		if err != nil {
 			return errors.WithStack(err)
 		}
@@ -135,7 +142,7 @@ func (c *controller) Start() error {
 		c.Statuses[spec.Name] = status
 		c.StatusSlice = append(c.StatusSlice, status)
 
-		ctn, err := c.Runtime.Bootstrapper(spec.Spec)
+		ctn, err := c.Runtime.Bootstrapper(spec.Spec, spec.Metadata)
 		if err != nil {
 			return errors.WithStack(err)
 		}

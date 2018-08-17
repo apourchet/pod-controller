@@ -83,19 +83,19 @@ func (ctn *container) Exec(program string, arguments ...string) (code int, err e
 
 // Bootstrapper only looks at the args, its as simple as it gets and does
 // almost nothing with the rest of the oci spec.
-var Bootstrapper = func(spec oci.Spec) interface{} {
+var Bootstrapper = func(spec oci.Spec, meta map[string]interface{}) (interface{}, error) {
 	image := "debian:9"
-	if spec.Root != nil && spec.Root.Path != "" {
-		image = spec.Root.Path
+	if dockerImage, found := meta["image"]; found {
+		image = dockerImage.(string)
 	}
 	cli, err := client.NewEnvClient()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	return &container{
 		image:     image,
 		program:   spec.Process.Args[0],
 		arguments: spec.Process.Args[1:],
 		client:    cli,
-	}
+	}, nil
 }

@@ -10,16 +10,20 @@
 {
     "initContainers": [
         {
-            "process": {
-                "args": ["sleep", "10"],
+            "spec": {
+                "process": {
+                    "args": ["sleep", "10"],
+                }
             }
         }
     ],   
     "containers": [
         {
             "name": "main",
-            "process": {
-                "args": ["/bin/sh", "-c", "touch /tmp/health && sleep 1000"]
+            "spec": {
+                "process": {
+                    "args": ["/bin/sh", "-c", "touch /tmp/health && sleep 1000"]
+                }
             },
             "livenessProbe": {
                 "exec": ["/bin/sh", "-c", "sleep 1 && cat /tmp/health"],
@@ -32,8 +36,10 @@
         },
         {
             "name": "sidecar",
-            "process": {
-                "args": ["/bin/sh", "-c", "touch /tmp/health && sleep 1001"]
+            "spec": {
+                "process": {
+                    "args": ["/bin/sh", "-c", "touch /tmp/health && sleep 1001"]
+                }
             },
             "livenessProbe": {
                 "exec": ["/bin/sh", "-c", "sleep 1 && cat /tmp/health"],
@@ -85,12 +91,12 @@ func (ctn *container) Exec(program string, arguments ...string) (code int, err e
 
 // Bootstrapper only looks at the args, its as simple as it gets and does
 // almost nothing with the rest of the oci spec.
-var Bootstrapper = func(spec oci.Spec) interface{} {
+var Bootstrapper = func(spec oci.Spec, meta map[string]interface{}) (interface{}, error) {
 	command := exec.Command(spec.Process.Args[0], spec.Process.Args[1:]...)
-	return &container{cmd: command}
+	return &container{cmd: command}, nil
 }
 ```
-The plugin only needs to define the `Bootstrapper` function that takes in an oci.Spec and returns either either an `error` or a `controller.Container` interface:
+The plugin only needs to define the `Bootstrapper` function that takes in an oci.Spec and returns either a `controller.Container` and an `error`:
 ```go
 type Container interface {
 	Start() error

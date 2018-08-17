@@ -2,8 +2,10 @@
     "containers": [
         {
             "name": "main",
-            "process": {
-                "args": ["/bin/sh", "-c", "sleep 1000"]
+            "spec": {
+                "process": {
+                    "args": ["/bin/sh", "-c", "sleep 1000"]
+                }
             },
             "livenessProbe": {
                 "exec": ["/bin/sh", "-c", "sleep 1 && cat /tmp/does_not_exist"],

@@ -2,8 +2,10 @@
     "containers": [
         {
             "name": "main",
-            "process": {
-                "args": ["/bin/sh", "-c", "touch /tmp/health && sleep 1000"]
+            "spec": {
+                "process": {
+                    "args": ["/bin/sh", "-c", "touch /tmp/health && sleep 1000"]
+                }
             },
             "livenessProbe": {
                 "exec": ["/bin/sh", "-c", "sleep 1 && cat /tmp/health"],
@@ -12,12 +14,17 @@
                 "timeoutSeconds": 2,
                 "successThreshold": 1,
                 "failureThreshold": 30
+            },
+            "metadata": {
+                "image": "mysql:latest"
             }
         },
         {
             "name": "sidecar",
-            "process": {
-                "args": ["/bin/sh", "-c", "touch /tmp/health && sleep 1001"]
+            "spec": {
+                "process": {
+                    "args": ["/bin/sh", "-c", "touch /tmp/health && sleep 1001"]
+                }
             },
             "livenessProbe": {
                 "exec": ["/bin/sh", "-c", "sleep 1 && cat /tmp/health"],
@@ -26,6 +33,9 @@
                 "timeoutSeconds": 2,
                 "successThreshold": 1,
                 "failureThreshold": 1
+            },
+            "metadata": {
+                "image": "debian:8"
             }
         }
     ]
