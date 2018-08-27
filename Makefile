@@ -5,9 +5,11 @@ RUNTIMES := $(shell bash -c 'ls runtimes | while read line; do echo bins/$$line;
 bins: bins/controller $(RUNTIMES)
 
 bins/controller: vendor $(wildcard *.go) $(wildcard ./cmd/*.go)
+	mkdir -p bins
 	CGO_ENABLED=1 go build -gcflags '-N -l' -o bins/controller cmd/*.go
 
 bins/%: $(wildcard runtimes/**/*.go)
+	mkdir -p bins
 	CGO_ENABLED=1 go build -gcflags '-N -l' -buildmode=plugin -o $@ runtimes/$(notdir $@)/*.go
 
 vendor: Gopkg.toml
@@ -30,7 +32,7 @@ integration: bins
 	pytest ./tests/python/
 
 clean:
-	 rm bins/*
+	 rm -rf bins/*
 
 # TODO: remove temp targets
 .PHONY: demo demo-watch demo-kill

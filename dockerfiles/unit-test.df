@@ -1,5 +1,6 @@
 FROM golang:1.10
-
-ADD . /go/src/local/controller
-WORKDIR /go/src/local/controller
+ENV GOBIN /go/bin
+RUN go get -u github.com/golang/dep/...
+ADD . /go/src/code.uber.internal/personal/pourchet/pod-controller
+WORKDIR /go/src/code.uber.internal/personal/pourchet/pod-controller
 RUN make clean unit-test

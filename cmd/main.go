@@ -5,11 +5,12 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"local/controller"
 	"log"
 	"net/http"
 	"os"
 	"time"
+
+	"code.uber.internal/personal/pourchet/pod-controller"
 
 	yaml "gopkg.in/yaml.v2"
 )
