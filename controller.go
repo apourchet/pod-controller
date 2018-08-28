@@ -72,14 +72,18 @@ func NewPodController(spec PodSpec, runtimePath string) (*controller, error) {
 		return nil, errors.WithStack(err)
 	}
 
+	return WithBootstrapper(spec, runtime.Bootstrapper), nil
+}
+
+func WithBootstrapper(spec PodSpec, bootstrapper ContainerBootstrapper) *controller {
 	return &controller{
 		Spec:        spec,
-		Runtime:     runtime,
+		Runtime:     RuntimeStrategy{bootstrapper},
 		Statuses:    map[string]*ContainerStatus{},
 		StatusSlice: []*ContainerStatus{},
 		Probes:      map[string]ProbeSet{},
 		Clock:       clock.New(),
-	}, nil
+	}
 }
 
 // Start goes through the spec of the controller and starts the init containers
