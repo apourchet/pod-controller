@@ -10,7 +10,7 @@ import (
 	"os"
 	"time"
 
-	"code.uber.internal/personal/pourchet/pod-controller"
+	"github.com/apourchet/pod-controller"
 
 	yaml "gopkg.in/yaml.v2"
 )

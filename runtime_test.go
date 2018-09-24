@@ -3,7 +3,7 @@ package controller_test
 import (
 	"testing"
 
-	"code.uber.internal/personal/pourchet/pod-controller"
+	"github.com/apourchet/pod-controller"
 	"github.com/stretchr/testify/require"
 )
 
