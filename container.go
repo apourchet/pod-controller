@@ -8,13 +8,31 @@ import (
 type ContainerState int
 
 const (
-	Started   ContainerState = iota
-	Healthy                  // When the liveness probe is healthy
-	Unhealthy                // When the liveness probe last failed after a healthy state
-	Terminal                 // When the liveness probe has given up
-	Finished                 // When the container exited with a 0 status code
-	Failed                   // When the container exited with non-0 status code
+	Started  ContainerState = iota
+	Healthy                 // When the liveness probe is healthy
+	Failing                 // When the liveness probe last failed after a healthy state
+	Terminal                // When the liveness probe has given up
+	Finished                // When the container exited with a 0 status code
+	Failed                  // When the container exited with non-0 status code
 )
+
+func (state ContainerState) String() string {
+	switch state {
+	case Started:
+		return "STARTED"
+	case Healthy:
+		return "HEALTHY"
+	case Failing:
+		return "FAILING"
+	case Terminal:
+		return "TERMINAL"
+	case Finished:
+		return "FINISHED"
+	case Failed:
+		return "FAILED"
+	}
+	return "UNKNOWN"
+}
 
 type ContainerStatus struct {
 	sync.Mutex
@@ -70,11 +88,11 @@ func (status *ContainerStatus) RecordRestart() {
 }
 
 // Healthy returns true if the container is in one of the 3 states:
-// Started, Healthy, Unhealthy
-// A status of Unhealthy means that the liveness probe has failed but has not reached the
+// Started, Healthy, Failing
+// A status of Failing means that the liveness probe has failed but has not reached the
 // failureThreshold. So in essence the container is still in a valid state, but most likely
 // transitioning into a failed state soon if the liveness probe keeps failing.
 func (status *ContainerStatus) Healthy() bool {
 	lastState := status.LastState()
-	return lastState == Started || lastState == Healthy || lastState == Unhealthy
+	return lastState == Started || lastState == Healthy || lastState == Failing
 }

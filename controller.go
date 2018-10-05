@@ -257,7 +257,7 @@ func (c *controller) nextState(status ContainerStatus, probes ProbeSet) (next Co
 	switch state {
 	case Failed, Finished, Terminal:
 		return state, restart, errs
-	case Started, Healthy, Unhealthy:
+	case Started, Healthy, Failing:
 		// If the container exited we can get the next state easily.
 		if !exitRunning {
 			if exitHealth {
@@ -277,7 +277,7 @@ func (c *controller) nextState(status ContainerStatus, probes ProbeSet) (next Co
 		if liveHealth {
 			return Healthy, restart, errs
 		}
-		return Unhealthy, restart, errs
+		return Failing, restart, errs
 	default:
 		panic(fmt.Sprintf("unrecognized state: %v", state))
 	}

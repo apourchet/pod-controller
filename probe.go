@@ -142,6 +142,8 @@ func (p *LongLivedProbe) Start() {
 			} else if p.consecutiveSuccesses >= p.SuccessThreshold ||
 				(!p.hasFailed && success) || (!p.hasSucceeded && success) {
 				p.isHealthy = true
+			} else if !success {
+				p.isHealthy = false
 			}
 			p.Unlock()
 
