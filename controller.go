@@ -203,11 +203,12 @@ func (c *controller) watch() {
 	for {
 		for cname, probeset := range c.Probes {
 			status := c.Statuses[cname]
-			state, mustRestart, errs := c.nextState(*status, probeset)
-			errs = filterErrors(errs)
+			lastState := status.LastState()
 
 			// If we get an error we havent seen before we will append it to our list
 			// of latest errors.
+			state, mustRestart, errs := c.nextState(lastState, probeset)
+			errs = filterErrors(errs)
 			if len(errs) > 0 {
 				if status.LatestError().Message != errs[0].Error() {
 					for _, msg := range stringifyErrors(errs) {
@@ -241,7 +242,7 @@ func (c *controller) watch() {
 // nextState computes the next state for the container from its status. It also computes
 // whether or not the container needs to be restarted and returns some of the errors the probes
 // might have run into.
-func (c *controller) nextState(status ContainerStatus, probes ProbeSet) (next ContainerState, restart bool, errs []error) {
+func (c *controller) nextState(state ContainerState, probes ProbeSet) (next ContainerState, restart bool, errs []error) {
 	exitHealth, exitErr := probes.Exit.Healthy()
 	exitRunning := probes.Exit.Running()
 
@@ -252,8 +253,6 @@ func (c *controller) nextState(status ContainerStatus, probes ProbeSet) (next Co
 
 	// TODO: restart computation
 	restart = false
-
-	state := status.LastState()
 	switch state {
 	case Failed, Finished, Terminal:
 		return state, restart, errs
