@@ -41,14 +41,18 @@ type ContainerStatus struct {
 	States       []ContainerState
 	LatestErrors []*ProbeError
 	Restarts     int
-
-	ctn  Container
-	spec ContainerSpec
 }
 
 type ProbeError struct {
 	Message   string
 	Timestamp time.Time
+}
+
+func NewContainerStatus(name string) *ContainerStatus {
+	return &ContainerStatus{
+		Name:   name,
+		States: []ContainerState{Started},
+	}
 }
 
 // LastState returns the last state of the container status.

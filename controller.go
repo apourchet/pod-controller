@@ -20,7 +20,7 @@ type PodController interface {
 
 	// Kill tries to send the signal to the containers and returns the status
 	// of the containers.
-	Kill(signal int) []ContainerStatus
+	Kill(signal int) []error
 
 	// This is the healthy bit that the pod controller should aim to get right
 	// as it will determine when the pod should get rescheduled.
@@ -47,21 +47,20 @@ type ContainerSpec struct {
 	Metadata map[string]interface{}
 }
 
+type ContainerInfo struct {
+	ctn    Container
+	probes *ProbeSet
+	status *ContainerStatus
+}
+
 // controller implements the PodController interface.
 type controller struct {
-	// TODO: concurrent access
-
-	Spec PodSpec
-
-	// The container launching strategy
-	Runtime RuntimeStrategy
-
 	// A map from container ID/name to container status
-	Statuses    map[string]*ContainerStatus
-	StatusSlice []*ContainerStatus
+	InitInfos map[string]ContainerInfo
+	MainInfos map[string]ContainerInfo
 
-	// A map from container ID/name to its probes
-	Probes map[string]ProbeSet
+	InitOrder []string
+	MainOrder []string
 
 	Clock clock.Clock
 }
@@ -71,19 +70,50 @@ func NewPodController(spec PodSpec, runtimePath string) (*controller, error) {
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-
-	return WithBootstrapper(spec, runtime.Bootstrapper), nil
+	return WithBootstrapper(spec, runtime.Bootstrapper)
 }
 
-func WithBootstrapper(spec PodSpec, bootstrapper ContainerBootstrapper) *controller {
-	return &controller{
-		Spec:        spec,
-		Runtime:     RuntimeStrategy{bootstrapper},
-		Statuses:    map[string]*ContainerStatus{},
-		StatusSlice: []*ContainerStatus{},
-		Probes:      map[string]ProbeSet{},
-		Clock:       clock.New(),
+func WithBootstrapper(spec PodSpec, bootstrapper ContainerBootstrapper) (*controller, error) {
+	initContainers, mainContainers, err := materializeContainers(spec, bootstrapper)
+	if err != nil {
+		return nil, err
 	}
+	return WithContainers(spec, initContainers, mainContainers)
+}
+
+func WithContainers(spec PodSpec, initContainers, mainContainers []Container) (*controller, error) {
+	if len(spec.InitContainers)+len(spec.Containers) != len(initContainers)+len(mainContainers) {
+		return nil, fmt.Errorf("Missing names for some of the containers")
+	}
+	c := &controller{
+		InitInfos: map[string]ContainerInfo{},
+		MainInfos: map[string]ContainerInfo{},
+		Clock:     clock.New(),
+	}
+	for i, ctn := range initContainers {
+		ctnSpec := spec.InitContainers[i]
+		status := NewContainerStatus(ctnSpec.Name)
+		c.InitInfos[ctnSpec.Name] = ContainerInfo{
+			ctn:    ctn,
+			status: status,
+		}
+		c.InitOrder = append(c.InitOrder, ctnSpec.Name)
+	}
+	for i, ctn := range mainContainers {
+		ctnSpec := spec.Containers[i]
+		status := NewContainerStatus(ctnSpec.Name)
+		probeSet, err := getProbeSet(ctnSpec, ctn)
+		if err != nil {
+			return c, err
+		}
+		c.MainInfos[ctnSpec.Name] = ContainerInfo{
+			ctn:    ctn,
+			status: status,
+			probes: &probeSet,
+		}
+		c.MainOrder = append(c.MainOrder, ctnSpec.Name)
+	}
+	return c, nil
 }
 
 // Start goes through the spec of the controller and starts the init containers
@@ -92,64 +122,17 @@ func WithBootstrapper(spec PodSpec, bootstrapper ContainerBootstrapper) *control
 func (c *controller) Start() error {
 	// First run the InitContainers of the pod. These containers will be
 	// run in sequence, and not healthchecked.
-	for _, spec := range c.Spec.InitContainers {
-		cmd, err := c.Runtime.Bootstrapper(spec.Spec, spec.Metadata)
-		if err != nil {
-			return errors.WithStack(err)
-		}
-
+	for _, name := range c.InitOrder {
+		info := c.InitInfos[name]
 		// Start that init container, then wait for it to run to completion.
-		if err := cmd.Start(); err != nil {
+		if err := info.ctn.Start(); err != nil {
 			return errors.WithStack(err)
-		} else if err := cmd.Wait(); err != nil {
+		} else if err := info.ctn.Wait(); err != nil {
 			return errors.WithStack(err)
 		}
-
 		// TODO: timeout these init containers.
 	}
-
-	// For each one of the containers in the spec, we create a status and we
-	// start that container and start the probes related to it.
-	for _, spec := range c.Spec.Containers {
-		status := &ContainerStatus{
-			Name:         spec.Name,
-			States:       []ContainerState{Started},
-			LatestErrors: []*ProbeError{},
-			spec:         spec,
-		}
-		c.Statuses[spec.Name] = status
-		c.StatusSlice = append(c.StatusSlice, status)
-
-		ctn, err := c.Runtime.Bootstrapper(spec.Spec, spec.Metadata)
-		if err != nil {
-			return errors.WithStack(err)
-		}
-		c.Statuses[spec.Name].ctn = ctn
-
-		exitCheck := ExitCheck(ctn)
-		exitProbe := NewExitProbe(exitCheck)
-
-		livenessProbe, err := spec.LivenessProbe.Materialize(ctn)
-		if err != nil {
-			return errors.WithStack(err)
-		}
-
-		readinessProbe, err := spec.ReadinessProbe.Materialize(ctn)
-		if err != nil {
-			return errors.WithStack(err)
-		}
-
-		c.Probes[spec.Name] = ProbeSet{
-			Exit:      exitProbe,
-			Liveness:  livenessProbe,
-			Readiness: readinessProbe,
-		}
-	}
-
-	// This watch will actually start all the probes, the exitProbes will start the
-	// container by themselves.
 	go c.watch()
-
 	return nil
 }
 
@@ -157,25 +140,29 @@ func (c *controller) Start() error {
 // for display.
 func (c *controller) Status() []ContainerStatus {
 	statuses := []ContainerStatus{}
-	for _, status := range c.StatusSlice {
-		statuses = append(statuses, *status)
+	for _, name := range c.MainOrder {
+		info := c.MainInfos[name]
+		statuses = append(statuses, *info.status)
 	}
 	return statuses
 }
 
 // Kill sends the kill signal to all of the containers in the pod.
-func (c *controller) Kill(signal int) []ContainerStatus {
-	for cname, status := range c.Statuses {
-		if err := status.ctn.Kill(signal); err != nil {
+func (c *controller) Kill(signal int) []error {
+	errs := []error{}
+	for _, name := range c.MainOrder {
+		info := c.MainInfos[name]
+		if err := info.ctn.Kill(signal); err != nil {
 			err = fmt.Errorf("failed to send kill signal %d to container %s: %v",
-				signal, cname, err)
-			status.AddError(&ProbeError{
+				signal, name, err)
+			errs = append(errs, err)
+			info.status.AddError(&ProbeError{
 				Message:   err.Error(),
 				Timestamp: c.Clock.Now(),
 			})
 		}
 	}
-	return c.Status()
+	return errs
 }
 
 // Healthy only looks through the container statuses to determine the health of the pod,
@@ -184,8 +171,9 @@ func (c *controller) Kill(signal int) []ContainerStatus {
 // For now if a single container within the pod is neither Started nor Healthy we deem the pod
 // to be unhealthy and should be rescheduled.
 func (c *controller) Healthy() bool {
-	for _, status := range c.Statuses {
-		if !status.Healthy() {
+	for _, name := range c.MainOrder {
+		info := c.MainInfos[name]
+		if !info.status.Healthy() {
 			return false
 		}
 	}
@@ -196,13 +184,13 @@ func (c *controller) Healthy() bool {
 // goes through all of the probes for all the containers and updates the statuses of
 // the containers within the pod. It does this pass every second.
 func (c *controller) watch() {
-	for _, probeset := range c.Probes {
-		probeset.Start()
+	for _, info := range c.MainInfos {
+		info.probes.Start()
 	}
-
 	for {
-		for cname, probeset := range c.Probes {
-			status := c.Statuses[cname]
+		c.Clock.Sleep(1 * time.Second)
+		for _, info := range c.MainInfos {
+			status, probeset := info.status, info.probes
 			lastState := status.LastState()
 
 			// If we get an error we havent seen before we will append it to our list
@@ -213,7 +201,7 @@ func (c *controller) watch() {
 				if status.LatestError().Message != errs[0].Error() {
 					for _, msg := range stringifyErrors(errs) {
 						err := &ProbeError{Message: msg, Timestamp: c.Clock.Now()}
-						c.Statuses[cname].AddError(err)
+						status.AddError(err)
 					}
 				} else {
 					status.LatestError().Timestamp = c.Clock.Now()
@@ -225,16 +213,15 @@ func (c *controller) watch() {
 			if state == status.LastState() {
 				continue
 			}
-			c.Statuses[cname].AddState(state)
+			status.AddState(state)
 
 			if mustRestart {
-				c.Statuses[cname].RecordRestart()
+				status.RecordRestart()
 				// TODO: restart container and change newStatus
 			}
 
 			// TODO: Prune that new status so that memory never explodes.
 		}
-		c.Clock.Sleep(1 * time.Second)
 		// TODO stopping mechanism
 	}
 }
@@ -242,7 +229,7 @@ func (c *controller) watch() {
 // nextState computes the next state for the container from its status. It also computes
 // whether or not the container needs to be restarted and returns some of the errors the probes
 // might have run into.
-func (c *controller) nextState(state ContainerState, probes ProbeSet) (next ContainerState, restart bool, errs []error) {
+func (c *controller) nextState(state ContainerState, probes *ProbeSet) (next ContainerState, restart bool, errs []error) {
 	exitHealth, exitErr := probes.Exit.Healthy()
 	exitRunning := probes.Exit.Running()
 
@@ -281,4 +268,43 @@ func (c *controller) nextState(state ContainerState, probes ProbeSet) (next Cont
 		panic(fmt.Sprintf("unrecognized state: %v", state))
 	}
 	return
+}
+
+func materializeContainers(spec PodSpec, bootstrapper ContainerBootstrapper) ([]Container, []Container, error) {
+	initContainers, mainContainers := []Container{}, []Container{}
+	for _, spec := range spec.InitContainers {
+		ctn, err := bootstrapper(spec.Spec, spec.Metadata)
+		if err != nil {
+			return nil, nil, errors.WithStack(err)
+		}
+		initContainers = append(initContainers, ctn)
+	}
+
+	for _, spec := range spec.Containers {
+		ctn, err := bootstrapper(spec.Spec, spec.Metadata)
+		if err != nil {
+			return nil, nil, errors.WithStack(err)
+		}
+		mainContainers = append(mainContainers, ctn)
+	}
+	return initContainers, mainContainers, nil
+}
+
+func getProbeSet(spec ContainerSpec, ctn Container) (ProbeSet, error) {
+	livenessProbe, err := spec.LivenessProbe.Materialize(ctn)
+	if err != nil {
+		return ProbeSet{}, errors.WithStack(err)
+	}
+
+	readinessProbe, err := spec.ReadinessProbe.Materialize(ctn)
+	if err != nil {
+		return ProbeSet{}, errors.WithStack(err)
+	}
+
+	exitProbe := NewExitProbe(ExitCheck(ctn))
+	return ProbeSet{
+		Exit:      exitProbe,
+		Liveness:  livenessProbe,
+		Readiness: readinessProbe,
+	}, nil
 }
