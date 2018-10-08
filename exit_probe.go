@@ -13,13 +13,14 @@ import (
 type ExitProbe struct {
 	sync.Mutex
 
-	Check     Check
-	isRunning bool
-	success   bool
-	err       error
+	Check      *AsyncCheck
+	isRunning  bool
+	hasStarted bool
+	success    bool
+	err        error
 }
 
-func NewExitProbe(check Check) *ExitProbe {
+func NewExitProbe(check *AsyncCheck) *ExitProbe {
 	return &ExitProbe{
 		Check: check,
 	}
@@ -28,6 +29,7 @@ func NewExitProbe(check Check) *ExitProbe {
 func (p *ExitProbe) Start() {
 	p.Lock()
 	p.isRunning = true
+	p.hasStarted = true
 	p.Unlock()
 
 	go func() {
@@ -52,6 +54,16 @@ func (p *ExitProbe) Running() bool {
 	p.Lock()
 	defer p.Unlock()
 	return p.isRunning
+}
+
+func (p *ExitProbe) Waiting() bool {
+	return p.Check.Waiting()
+}
+
+func (p *ExitProbe) Started() bool {
+	p.Lock()
+	defer p.Unlock()
+	return p.hasStarted
 }
 
 func (p *ExitProbe) Stop() {}

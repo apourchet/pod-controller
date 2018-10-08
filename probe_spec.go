@@ -5,18 +5,6 @@ import (
 	"time"
 )
 
-type ProbeSet struct {
-	Exit      Probe
-	Liveness  Probe
-	Readiness Probe
-}
-
-func (pset ProbeSet) Start() {
-	pset.Exit.Start()
-	pset.Liveness.Start()
-	pset.Readiness.Start()
-}
-
 type ProbeSpec struct {
 	Exec    *[]string
 	HTTPGet *struct {

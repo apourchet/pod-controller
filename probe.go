@@ -18,6 +18,7 @@ import (
 type Probe interface {
 	Start()
 	Healthy() (healthy bool, err error)
+	Started() bool
 	Running() bool
 	Stop()
 }
@@ -78,8 +79,9 @@ type LongLivedProbe struct {
 	Check Check
 	Clock clock.Clock
 
-	isRunning bool
-	isHealthy bool
+	isRunning  bool
+	isHealthy  bool
+	hasStarted bool
 }
 
 func newLongLivedProbe(check Check) *LongLivedProbe {
@@ -100,6 +102,7 @@ func newLongLivedProbe(check Check) *LongLivedProbe {
 func (p *LongLivedProbe) Start() {
 	p.Lock()
 	p.isRunning = true
+	p.hasStarted = true
 	p.Unlock()
 
 	go func() {
@@ -163,6 +166,12 @@ func (p *LongLivedProbe) Running() bool {
 	p.Lock()
 	defer p.Unlock()
 	return p.isRunning
+}
+
+func (p *LongLivedProbe) Started() bool {
+	p.Lock()
+	defer p.Unlock()
+	return p.hasStarted
 }
 
 func (p *LongLivedProbe) Stop() {

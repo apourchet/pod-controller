@@ -33,12 +33,13 @@ def test_unhealthy_forever():
     utils.start_controller('unhealthy_forever.json')
 
     # Wait for it to get into its steady state.
-    for i in range(3):
+    for i in range(5):
         resp = requests.get('http://localhost:8888/status')
         assert resp is not None and resp.json() is not None
         data = resp.json()
-        if len(data[0]['States']) < 3:
-            time.sleep(1)
+        if len(data[0]['States']) == 3:
+            break
+        time.sleep(1)
 
     # Then query the healthy bit.
     for i in range(3):

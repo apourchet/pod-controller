@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os/exec"
+	"sync"
 )
 
 // A Check is a simple interface that will be easily mocked for testing purposes. It mirrors almost
@@ -30,6 +31,40 @@ func (check RunnerCheck) Run() (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+type AsyncCheck struct {
+	sync.Mutex
+
+	Start func() error
+	Wait  func() error
+
+	waiting bool
+}
+
+func NewAsyncCheck(start, wait func() error) *AsyncCheck {
+	return &AsyncCheck{Start: start, Wait: wait}
+}
+
+func (check *AsyncCheck) Run() (bool, error) {
+	if err := check.Start(); err != nil {
+		return false, err
+	}
+
+	check.Lock()
+	check.waiting = true
+	check.Unlock()
+
+	if err := check.Wait(); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (check *AsyncCheck) Waiting() bool {
+	check.Lock()
+	defer check.Unlock()
+	return check.waiting
 }
 
 // A ShellCheck implements the Check interface and runs a command, reporting an error if the
@@ -117,4 +152,13 @@ func (check HTTPCheck) Run() (bool, error) {
 		return false, ErrBadStatusCode
 	}
 	return true, nil
+}
+
+// ExitCheck takes a Container returned by the ContainerBootstrapper and returns a Check
+// that syncronously Starts and Waits.
+func ExitCheck(ctn Container) *AsyncCheck {
+	return &AsyncCheck{
+		Start: ctn.Start,
+		Wait:  ctn.Wait,
+	}
 }

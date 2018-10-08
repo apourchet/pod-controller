@@ -102,14 +102,14 @@ func WithContainers(spec PodSpec, initContainers, mainContainers []Container) (*
 	for i, ctn := range mainContainers {
 		ctnSpec := spec.Containers[i]
 		status := NewContainerStatus(ctnSpec.Name)
-		probeSet, err := getProbeSet(ctnSpec, ctn)
+		probeSet, err := c.getProbeSet(ctnSpec, ctn)
 		if err != nil {
 			return c, err
 		}
 		c.MainInfos[ctnSpec.Name] = ContainerInfo{
 			ctn:    ctn,
 			status: status,
-			probes: &probeSet,
+			probes: probeSet,
 		}
 		c.MainOrder = append(c.MainOrder, ctnSpec.Name)
 	}
@@ -234,7 +234,7 @@ func (c *controller) nextState(state ContainerState, probes *ProbeSet) (next Con
 	exitRunning := probes.Exit.Running()
 
 	liveHealth, liveErr := probes.Liveness.Healthy()
-	liveRunning := probes.Liveness.Running()
+	liveStarted, liveRunning := probes.Liveness.Started(), probes.Liveness.Running()
 
 	errs = []error{exitErr, liveErr}
 
@@ -250,6 +250,12 @@ func (c *controller) nextState(state ContainerState, probes *ProbeSet) (next Con
 				return Finished, restart, errs
 			}
 			return Failed, restart, errs
+		}
+
+		// If the liveness has not started yet then it means the exit probe is still
+		// in its starting phase.
+		if !liveStarted {
+			return Started, restart, errs
 		}
 
 		// If the container did not exit yet we need to check that the liveness
@@ -290,21 +296,19 @@ func materializeContainers(spec PodSpec, bootstrapper ContainerBootstrapper) ([]
 	return initContainers, mainContainers, nil
 }
 
-func getProbeSet(spec ContainerSpec, ctn Container) (ProbeSet, error) {
+func (c *controller) getProbeSet(spec ContainerSpec, ctn Container) (*ProbeSet, error) {
 	livenessProbe, err := spec.LivenessProbe.Materialize(ctn)
 	if err != nil {
-		return ProbeSet{}, errors.WithStack(err)
+		return nil, errors.WithStack(err)
 	}
 
 	readinessProbe, err := spec.ReadinessProbe.Materialize(ctn)
 	if err != nil {
-		return ProbeSet{}, errors.WithStack(err)
+		return nil, errors.WithStack(err)
 	}
 
 	exitProbe := NewExitProbe(ExitCheck(ctn))
-	return ProbeSet{
-		Exit:      exitProbe,
-		Liveness:  livenessProbe,
-		Readiness: readinessProbe,
-	}, nil
+	pset := NewProbeSet(exitProbe, livenessProbe, readinessProbe)
+	pset.Sleeper = func(d time.Duration) { c.Clock.Sleep(d) }
+	return pset, nil
 }

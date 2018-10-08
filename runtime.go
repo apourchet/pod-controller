@@ -65,16 +65,3 @@ func LoadPlugin(path string) (RuntimeStrategy, error) {
 
 	return strategy, nil
 }
-
-// ExitCheck takes a Container returned by the ContainerBootstrapper and returns a Check
-// that syncronously Starts and Waits.
-func ExitCheck(ctn Container) Check {
-	return RunnerCheck{
-		Runner: func() error {
-			if err := ctn.Start(); err != nil {
-				return err
-			}
-			return ctn.Wait()
-		},
-	}
-}
