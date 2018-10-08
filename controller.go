@@ -16,7 +16,7 @@ import (
 // HEALTHY bit of information.
 type PodController interface {
 	Start() error
-	Status() []ContainerStatus
+	Status() []*ContainerStatus
 
 	// Kill tries to send the signal to the containers and returns the status
 	// of the containers.
@@ -138,11 +138,11 @@ func (c *controller) Start() error {
 
 // Status gathers the statuses of all the containers and appends them to a list
 // for display.
-func (c *controller) Status() []ContainerStatus {
-	statuses := []ContainerStatus{}
+func (c *controller) Status() []*ContainerStatus {
+	statuses := []*ContainerStatus{}
 	for _, name := range c.MainOrder {
 		info := c.MainInfos[name]
-		statuses = append(statuses, *info.status)
+		statuses = append(statuses, info.status)
 	}
 	return statuses
 }
